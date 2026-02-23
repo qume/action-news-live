@@ -18,15 +18,192 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
+            font-family: monospace;
         }
-        img {
+        .container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            max-height: 100vh;
+        }
+        .container img {
             max-width: 100%;
             max-height: 100vh;
             object-fit: contain;
+            display: block;
+        }
+        .key {
+            position: absolute;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.1s, box-shadow 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .key:hover {
+            background: rgba(255, 200, 50, 0.35);
+            box-shadow: 0 0 8px rgba(255, 200, 50, 0.5);
+        }
+        .key:active, .key.pressed {
+            background: rgba(255, 100, 50, 0.5);
+            box-shadow: 0 0 12px rgba(255, 100, 50, 0.6);
+            transform: scale(0.95);
+        }
+        .key .label {
+            opacity: 0;
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+            text-shadow: 0 0 4px #000, 0 0 2px #000;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .key:hover .label {
+            opacity: 1;
+        }
+        #typed-output {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 20px;
+            padding: 8px 20px;
+            border-radius: 6px;
+            border: 1px solid #0f0;
+            min-width: 200px;
+            text-align: center;
+            letter-spacing: 3px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        #typed-output.visible {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-    <img src="firefox.jpg" alt="Action News Live - Breaking News #7">
+    <div class="container" id="container">
+        <img src="firefox.jpg" alt="Action News Live - Breaking News #7" id="mainimg">
+    </div>
+    <div id="typed-output"></div>
+
+    <script>
+        // Key positions as percentages of the image [x%, y%, width%, height%, letter]
+        const keys = [
+            // Row 1: A B C D E F G
+            [11.5, 77.0, 5.5, 3.2, 'A'],
+            [19.5, 77.0, 5.5, 3.2, 'B'],
+            [27.0, 77.0, 5.5, 3.2, 'C'],
+            [34.0, 77.0, 6.0, 3.2, 'D'],
+            [41.5, 77.0, 5.5, 3.2, 'E'],
+            [49.0, 77.0, 5.5, 3.2, 'F'],
+            [56.5, 77.0, 5.5, 3.2, 'G'],
+
+            // Row 2: H I J K L
+            [7.0, 82.5, 6.0, 3.5, 'H'],
+            [16.0, 82.5, 5.0, 3.5, 'I'],
+            [23.5, 82.5, 5.5, 3.5, 'J'],
+            [32.5, 82.5, 5.5, 3.5, 'K'],
+            [41.0, 82.5, 5.5, 3.5, 'L'],
+
+            // Row 3: M N O P Q
+            [8.0, 87.5, 6.5, 3.5, 'M'],
+            [19.0, 87.5, 6.0, 3.5, 'N'],
+            [29.0, 87.5, 6.0, 3.5, 'O'],
+            [38.5, 87.5, 5.5, 3.5, 'P'],
+            [47.0, 87.5, 6.5, 4.0, 'Q'],
+
+            // Row 4: R S T U
+            [8.0, 92.5, 6.5, 3.5, 'R'],
+            [20.0, 92.0, 6.5, 3.5, 'S'],
+            [32.0, 92.0, 6.5, 3.5, 'T'],
+            [43.0, 92.0, 6.5, 3.5, 'U'],
+
+            // Row 5: W X Y Z (large, spread out) -- the drawing shows W, K/X, Y, Z
+            [6.0, 96.0, 10.0, 3.8, 'W'],
+            [24.0, 96.0, 8.0, 3.8, 'X'],
+            [38.0, 96.0, 8.0, 3.8, 'Y'],
+            [52.0, 95.5, 8.0, 4.2, 'Z'],
+        ];
+
+        const container = document.getElementById('container');
+        const typedOutput = document.getElementById('typed-output');
+        let typed = '';
+        let hideTimeout;
+
+        function createKeys() {
+            // Remove old keys
+            document.querySelectorAll('.key').forEach(k => k.remove());
+
+            keys.forEach(([xPct, yPct, wPct, hPct, letter]) => {
+                const div = document.createElement('div');
+                div.className = 'key';
+                div.style.left = xPct + '%';
+                div.style.top = yPct + '%';
+                div.style.width = wPct + '%';
+                div.style.height = hPct + '%';
+                div.dataset.letter = letter;
+
+                const label = document.createElement('span');
+                label.className = 'label';
+                label.textContent = letter;
+                div.appendChild(label);
+
+                div.addEventListener('click', () => pressKey(div, letter));
+                div.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    pressKey(div, letter);
+                }, { passive: false });
+
+                container.appendChild(div);
+            });
+        }
+
+        function pressKey(el, letter) {
+            el.classList.add('pressed');
+            setTimeout(() => el.classList.remove('pressed'), 150);
+
+            typed += letter;
+            if (typed.length > 30) typed = typed.slice(-30);
+            typedOutput.textContent = typed;
+            typedOutput.classList.add('visible');
+
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                typedOutput.classList.remove('visible');
+                typed = '';
+            }, 3000);
+        }
+
+        // Also respond to physical keyboard presses
+        document.addEventListener('keydown', (e) => {
+            const letter = e.key.toUpperCase();
+            if (letter === 'BACKSPACE') {
+                typed = typed.slice(0, -1);
+                typedOutput.textContent = typed;
+                if (typed.length === 0) typedOutput.classList.remove('visible');
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    typedOutput.classList.remove('visible');
+                    typed = '';
+                }, 3000);
+                return;
+            }
+            const keyEl = document.querySelector(`.key[data-letter="${letter}"]`);
+            if (keyEl) {
+                pressKey(keyEl, letter);
+            }
+        });
+
+        createKeys();
+        window.addEventListener('resize', createKeys);
+    </script>
 </body>
 </html>
